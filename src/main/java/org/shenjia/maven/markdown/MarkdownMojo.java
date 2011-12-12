@@ -1,6 +1,4 @@
-package org.shenjia.maven.markdown;
-
-/*
+/**
  * Copyright (c) 2011 Json Shen, http://www.shenjia.org/
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -22,6 +20,8 @@ package org.shenjia.maven.markdown;
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+package org.shenjia.maven.markdown;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -114,24 +114,53 @@ public class MarkdownMojo extends AbstractMojo {
 					//输出流，用于读文件
 					in = new BufferedReader(new FileReader(f));
 					
-					String one = in.readLine();
+					String outLine = in.readLine();
+					String outTag = getLineTag(outLine);
 					//写入目标文件头
-					out.write(header.replaceFirst("\\{title}", one));
+					out.write(header.replaceFirst("\\{title}", outLine));
 					
-					String two = in.readLine();
-					while(one != null){
-						if(two == null){
-							out.write(processor.markdown(one));
+					String logicLine = null;
+					String logicTag = null;
+					
+					while(outLine != null){
+						if(outTag.equals("h1") || outTag.equals("h2")){
+							out.write(processor.markdown(outLine));
+							outLine = in.readLine();
+							outTag = getLineTag(outLine);
+							continue;
+						}
+						
+						logicLine = in.readLine();
+						if(logicLine == null){
+							out.write(processor.markdown(outLine));
 							break;
 						}
-						if(two.startsWith("====") || two.startsWith("----")){
-							out.write(processor.markdown(one+"\n"+two));
-						}else{
-							out.write(processor.markdown(one));
-							out.write(processor.markdown(two));
+						
+						logicTag = getLineTag(logicLine);
+						if(logicTag.equals("")){
+							out.write(processor.markdown(outLine));
+							outLine = logicLine;
+							outTag = getLineTag(outLine);
+							continue;
 						}
-						one = in.readLine();
-						two = in.readLine();
+						
+						if(logicTag.equals("h1") || logicTag.equals("h2")){
+							out.write(processor.markdown(outLine+"\n"+logicLine));
+							outLine = in.readLine();
+							outTag = getLineTag(outLine);
+							continue;
+						}
+						
+						if(logicTag.equals("ul") || logicTag.equals("ol")){
+							if(logicTag.equals(outTag)){
+								outLine = outLine + "\n" + logicLine;
+								continue;
+							}
+							out.write(processor.markdown(outLine));
+							outLine = logicLine;
+							outTag = getLineTag(outLine);
+							continue;
+						}
 					}
 					//写入目标文件尾
 					out.write(footer);
@@ -149,6 +178,25 @@ public class MarkdownMojo extends AbstractMojo {
 				}
 			}
 		}
+	}
+	
+	private String getLineTag(String line){
+		if(line == null){
+			return "";
+		}
+		if(line.startsWith("*") || line.startsWith("+") || line.startsWith("-")){
+			return "ul";
+		}
+		if(line.startsWith("====")){
+			return "h1";
+		}
+		if(line.startsWith("----")){
+			return "h2";
+		}
+		if(line.startsWith("[0-9]+")){
+			return "ol";
+		}
+		return "";
 	}
 	
 	/**
