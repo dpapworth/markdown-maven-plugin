@@ -50,15 +50,15 @@ public class MarkdownMojo extends AbstractMojo {
     /**
      * markdown文件根目录
      * 
-     * @parameter expression="${markdown.directory}"
+     * @parameter expression="${markdown.sourceDirectory}"
      * @required
      */
-    private File markdownDirectory;
+    private File sourceDirectory;
 
     /**
      * 输出文件根目录
      * 
-     * @parameter expression="${project.build.directory}"
+     * @parameter expression="${markdown.outputDirectory}"
      * @required
      */
     private File outputDirectory;
@@ -66,35 +66,28 @@ public class MarkdownMojo extends AbstractMojo {
     /**
      * 目标文件头
      * 
-     * @parameter expression="${html.header}" default-value="<!DOCTYPE html><head><title>{title}</title></head><body>\n"
+     * @parameter expression="${markdown.htmlHeader}" default-value="<!DOCTYPE html><head><title>{title}</title></head><body>\n"
      */
-    private String header;
+    private String htmlHeader;
 
     /**
      * 目标文件尾
      * 
-     * @parameter expression="${html.footer}" default-value="</body></html>"
+     * @parameter expression="${markdown.htmlFooter}" default-value="</body></html>"
      */
-    private String footer;
-
-    /**
-     * 是否复制markdown文件到输出目录
-     * 
-     * @parameter expression="${copy.markdown}" default-value="true"
-     */
-    private Boolean copyMarkdown;
+    private String htmlFooter;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (!outputDirectory.exists()) {
             outputDirectory.mkdirs();
         }
         // 递归处理markdown
-        processMarkdown(markdownDirectory, new MarkdownProcessor());
+        processMarkdown(sourceDirectory, new MarkdownProcessor());
     }
 
     private void processMarkdown(File file, MarkdownProcessor processor) {
         // markdown文件根目录路径长度
-        int srcDirPathLen = markdownDirectory.getPath().length();
+        int srcDirPathLen = sourceDirectory.getPath().length();
         File[] files = file.listFiles(createFileFilter());
         for (File f : files) {
             if (f.isDirectory()) {
@@ -126,7 +119,7 @@ public class MarkdownMojo extends AbstractMojo {
                     String outLine = in.readLine();
                     String outTag = getLineTag(outLine);
                     // 写入目标文件头
-                    out.write(header.replaceFirst("\\{title}", outLine));
+                    out.write(htmlHeader.replaceFirst("\\{title}", outLine));
 
                     String logicLine = null;
                     String logicTag = null;
@@ -173,7 +166,7 @@ public class MarkdownMojo extends AbstractMojo {
                         }
                     }
                     // 写入目标文件尾
-                    out.write(footer);
+                    out.write(htmlFooter);
                 } catch (FileNotFoundException e) {
                     getLog().error(e.getMessage(), e);
                 } catch (IOException e) {
