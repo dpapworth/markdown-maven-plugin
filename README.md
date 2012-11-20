@@ -19,8 +19,9 @@ Usage
             </execution>
         </executions>
         <configuration>
-            <copyMarkdown>false</copyMarkdown>
-            <markdownDirectory>src/main/resources/documents</markdownDirectory>
+            <htmlHeader><![CDATA[<!DOCTYPE html><head><title>{title}</title></head><body>]]></htmlHeader>
+            <htmlFooter><![CDATA[</body></html>]]></htmlFooter>
+            <sourceDirectory>src/main/resources/documents</sourceDirectory>
             <outputDirectory>${project.build.directory}/html</outputDirectory>
         </configuration>
     </plugin>
