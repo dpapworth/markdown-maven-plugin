@@ -21,7 +21,17 @@ Usage
         <configuration>
             <htmlHeader><![CDATA[<!DOCTYPE html><head><title>{title}</title></head><body>]]></htmlHeader>
             <htmlFooter><![CDATA[</body></html>]]></htmlFooter>
-            <sourceDirectory>src/main/resources/documents</sourceDirectory>
+            <fileSet>
+                <directory>src/main/resources/documents</directory>
+                <includes>
+                    <include>**/*.md</include>
+                </includes>
+                <mapper>
+                    <type>glob</type>
+                    <from>*.md</from>
+                    <to>*.html</to>
+                </mapper>
+            </fileSet>
             <outputDirectory>${project.build.directory}/html</outputDirectory>
         </configuration>
     </plugin>
