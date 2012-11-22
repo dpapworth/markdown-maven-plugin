@@ -24,11 +24,13 @@
 package org.shenjia.maven.markdown;
 
 import java.io.File;
+import java.util.Map;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.shared.model.fileset.FileSet;
+import org.apache.maven.shared.model.fileset.mappers.MapperException;
 import org.apache.maven.shared.model.fileset.util.FileSetManager;
 import org.parboiled.common.FileUtils;
 import org.pegdown.PegDownProcessor;
@@ -75,25 +77,30 @@ public class MarkdownMojo extends AbstractMojo {
     public void execute() throws MojoExecutionException, MojoFailureException {
         PegDownProcessor processor = new PegDownProcessor();
         FileSetManager fileSetManager = new FileSetManager(getLog());
-
-        for (String inputFilename : fileSetManager.getIncludedFiles(fileSet)) {
-            // Map .md to .html
-            String outputFilename = inputFilename.replaceAll("\\.md$", ".html");
-
-            File inputFile = new File(fileSet.getDirectory(), inputFilename);
-            File outputFile = new File(outputDirectory, outputFilename);
-
-            // Create parent directories for outputFile
-            File parentOutputDirectory = outputFile.getParentFile();
-            if (!parentOutputDirectory.isDirectory() && !parentOutputDirectory.mkdirs()) {
-                throw new MojoExecutionException("Failed to create directory " + parentOutputDirectory.getAbsolutePath());
+        try {
+            Map<String, String> sourceDestinationMap = fileSetManager.mapIncludedFiles(fileSet);
+            for (Map.Entry<String, String> sourceDestination : sourceDestinationMap.entrySet()) {
+                process(sourceDestination.getKey(), sourceDestination.getValue(), processor);
             }
-
-            // Convert file
-            String markdown = FileUtils.readAllText(inputFile);
-            String htmlFragment = processor.markdownToHtml(markdown);
-            FileUtils.writeAllText(htmlHeader + htmlFragment + htmlFooter, outputFile);
+        } catch (MapperException e) {
+            throw new MojoExecutionException("Failed to map source to destination", e);
         }
+    }
+
+    protected void process(String inputFilename, String outputFilename, PegDownProcessor processor) throws MojoExecutionException {
+        File inputFile = new File(fileSet.getDirectory(), inputFilename);
+        File outputFile = new File(outputDirectory, outputFilename);
+
+        // Create parent directories for outputFile
+        File parentOutputDirectory = outputFile.getParentFile();
+        if (!parentOutputDirectory.isDirectory() && !parentOutputDirectory.mkdirs()) {
+            throw new MojoExecutionException("Failed to create directory " + parentOutputDirectory.getAbsolutePath());
+        }
+
+        // Convert file
+        String markdown = FileUtils.readAllText(inputFile);
+        String htmlFragment = processor.markdownToHtml(markdown);
+        FileUtils.writeAllText(htmlHeader + htmlFragment + htmlFooter, outputFile);
     }
 
 }
