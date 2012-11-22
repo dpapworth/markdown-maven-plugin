@@ -24,14 +24,16 @@
 package org.shenjia.maven.markdown;
 
 import java.io.File;
-import java.io.FileFilter;
+import java.util.List;
 
+import org.apache.maven.model.FileSet;
+import org.apache.maven.model.PatternSet;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.codehaus.plexus.util.DirectoryScanner;
 import org.parboiled.common.FileUtils;
 import org.pegdown.PegDownProcessor;
-
 
 /**
  * Markdown maven plugin mojo
@@ -48,7 +50,7 @@ public class MarkdownMojo extends AbstractMojo {
      * @parameter expression="${markdown.sourceDirectory}"
      * @required
      */
-    private File sourceDirectory;
+    private FileSet fileSet;
 
     /**
      * 输出文件根目录
@@ -73,57 +75,48 @@ public class MarkdownMojo extends AbstractMojo {
     private String htmlFooter;
 
     public void execute() throws MojoExecutionException, MojoFailureException {
-        if (!outputDirectory.exists()) {
-            outputDirectory.mkdirs();
-        }
-        // 递归处理markdown
-        processMarkdown(sourceDirectory, new PegDownProcessor());
-    }
+        PegDownProcessor processor = new PegDownProcessor();
 
-    private void processMarkdown(File file, PegDownProcessor processor) throws MojoExecutionException {
-        // markdown文件根目录路径长度
-        int srcDirPathLen = sourceDirectory.getPath().length();
-        File[] files = file.listFiles(createFileFilter());
-        for (File inputFile : files) {
-            if (inputFile.isDirectory()) {
-                processMarkdown(inputFile, processor);
-            } else {
-                File outputDir = outputDirectory;
-                String subPath = inputFile.getParentFile().getPath().substring(srcDirPathLen);
-                if (subPath.length() > 0) {
-                    outputDir = new File(outputDirectory, subPath);
-                    if (!outputDir.isDirectory() && !outputDir.mkdirs()) {
-                        throw new MojoExecutionException("Failed to create " + outputDir.getName());
-                    }
-                }
+        for (String inputFilename : scan(fileSet).getIncludedFiles()) {
+            File inputFile = new File(fileSet.getDirectory(), inputFilename);
 
-                String outputName = inputFile.getName().replaceAll("\\.md", ".html");
-                File outputFile = new File(outputDir, outputName);
+            // Map .md to .html
+            String outputFilename = inputFilename.replaceAll("\\.md$", ".html");
+            File outputFile = new File(outputDirectory, outputFilename);
 
-                String markdown = FileUtils.readAllText(inputFile);
-                String htmlFragment = processor.markdownToHtml(markdown);
-                FileUtils.writeAllText(htmlHeader + htmlFragment + htmlFooter, outputFile);
+            // Create parent directories for outputFile
+            File parentOutputDirectory = outputFile.getParentFile();
+            if(!parentOutputDirectory.isDirectory() && !parentOutputDirectory.mkdirs()) {
+                throw new MojoExecutionException("Failed to create directory " + parentOutputDirectory.getAbsolutePath());
             }
+
+            // Convert file
+            String markdown = FileUtils.readAllText(inputFile);
+            String htmlFragment = processor.markdownToHtml(markdown);
+            FileUtils.writeAllText(htmlHeader + htmlFragment + htmlFooter, outputFile);
         }
     }
 
-    /**
-     * 创建一个文件过滤器
-     * 
-     * @return
-     */
-    private FileFilter createFileFilter() {
-        return new FileFilter() {
-            public boolean accept(File file) {
-                if (file.isDirectory()) {
-                    return true;
-                }
-                if (file.getName().endsWith(".md")) {
-                    return true;
-                }
-                return false;
-            }
-        };
+    protected DirectoryScanner scan(FileSet fileSet) {
+        return scan(fileSet, fileSet.getDirectory());
+    }
+
+    protected DirectoryScanner scan(PatternSet patternSet, String basedir) {
+        DirectoryScanner scanner = new DirectoryScanner();
+        scanner.setBasedir(basedir);
+        if (!patternSet.getIncludes().isEmpty()) {
+            scanner.setIncludes(toArray(patternSet.getIncludes()));
+        }
+        if (!patternSet.getExcludes().isEmpty()) {
+            scanner.setExcludes(toArray(patternSet.getExcludes()));
+        }
+        scanner.addDefaultExcludes();
+        scanner.scan();
+        return scanner;
+    }
+
+    private String[] toArray(List list) {
+        return (String[]) list.toArray(new String[list.size()]);
     }
 
 }
