@@ -24,14 +24,12 @@
 package org.shenjia.maven.markdown;
 
 import java.io.File;
-import java.util.List;
 
-import org.apache.maven.model.FileSet;
-import org.apache.maven.model.PatternSet;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.codehaus.plexus.util.DirectoryScanner;
+import org.apache.maven.shared.model.fileset.FileSet;
+import org.apache.maven.shared.model.fileset.util.FileSetManager;
 import org.parboiled.common.FileUtils;
 import org.pegdown.PegDownProcessor;
 
@@ -76,17 +74,18 @@ public class MarkdownMojo extends AbstractMojo {
 
     public void execute() throws MojoExecutionException, MojoFailureException {
         PegDownProcessor processor = new PegDownProcessor();
+        FileSetManager fileSetManager = new FileSetManager(getLog());
 
-        for (String inputFilename : scan(fileSet).getIncludedFiles()) {
-            File inputFile = new File(fileSet.getDirectory(), inputFilename);
-
+        for (String inputFilename : fileSetManager.getIncludedFiles(fileSet)) {
             // Map .md to .html
             String outputFilename = inputFilename.replaceAll("\\.md$", ".html");
+
+            File inputFile = new File(fileSet.getDirectory(), inputFilename);
             File outputFile = new File(outputDirectory, outputFilename);
 
             // Create parent directories for outputFile
             File parentOutputDirectory = outputFile.getParentFile();
-            if(!parentOutputDirectory.isDirectory() && !parentOutputDirectory.mkdirs()) {
+            if (!parentOutputDirectory.isDirectory() && !parentOutputDirectory.mkdirs()) {
                 throw new MojoExecutionException("Failed to create directory " + parentOutputDirectory.getAbsolutePath());
             }
 
@@ -95,28 +94,6 @@ public class MarkdownMojo extends AbstractMojo {
             String htmlFragment = processor.markdownToHtml(markdown);
             FileUtils.writeAllText(htmlHeader + htmlFragment + htmlFooter, outputFile);
         }
-    }
-
-    protected DirectoryScanner scan(FileSet fileSet) {
-        return scan(fileSet, fileSet.getDirectory());
-    }
-
-    protected DirectoryScanner scan(PatternSet patternSet, String basedir) {
-        DirectoryScanner scanner = new DirectoryScanner();
-        scanner.setBasedir(basedir);
-        if (!patternSet.getIncludes().isEmpty()) {
-            scanner.setIncludes(toArray(patternSet.getIncludes()));
-        }
-        if (!patternSet.getExcludes().isEmpty()) {
-            scanner.setExcludes(toArray(patternSet.getExcludes()));
-        }
-        scanner.addDefaultExcludes();
-        scanner.scan();
-        return scanner;
-    }
-
-    private String[] toArray(List list) {
-        return (String[]) list.toArray(new String[list.size()]);
     }
 
 }
